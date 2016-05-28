@@ -10,7 +10,7 @@
 bool debugging=true;
 
 //Enables the watcher
-bool watch=true;
+bool watch=false;
 
 //Puzzle-specific parameters
 uint8_t width=0;
@@ -61,7 +61,6 @@ Node* init_node(Node* parent)
 //Prints the info asssociated to the node
 void print_node(Node* n)
 {
-  printf("\nNode State\n");
   for(uint8_t row = 0; row < height; row++)
   {
     for(uint8_t col = 0; col <width; col++)
@@ -70,6 +69,7 @@ void print_node(Node* n)
     }
     printf("\n");
   }
+  printf("\n");
 }
 
 //Reads the input file.
@@ -204,7 +204,11 @@ void gen_children(Node* n)
 
       //Prints the resulting children node (only when debugging)
       if (debugging)
+      {
+        printf("Result of shift right on row %hhu\n",row);
         print_node(n->childs[idx]);
+      }
+
 
       //Increase the index so a different children is modified
       idx++;
@@ -212,17 +216,18 @@ void gen_children(Node* n)
       //Now we generate the children node associated to the shift left
 
       //Shifts the row to the left except for the last element
-      for (size_t j = 0; j < width-2; j++)
+      for (size_t j = 0; j < width-1; j++)
         n->childs[idx]->state[row][j]=n->state[row][j+1];
 
       //Does the shift for the last element
-      //THIS IS NOT WORKING!!
-      //TODO: FIX THIS
       n->childs[idx]->state[row][width-1]= n->state[row][0];
 
       //Prints the resulting children node (only when debugging)
       if (debugging)
+      {
+        printf("Result of shift left on row %hhu\n",row);
         print_node(n->childs[idx]);
+      }
 
       //Increase the index so a different children is modified
       idx++;
@@ -230,21 +235,110 @@ void gen_children(Node* n)
   }
 
   //Loops through the active columns
-  for(uint8_t col = 0; col < height; col++)
+  for(uint8_t col = 0; col < width; col++)
   {
     if (active_cols[col])
     {
-      //TODO shift up
+      //shifts the column up except for the last element
+      for (size_t j = 0; j < height-1; j++)
+        n->childs[idx]->state[j][col]=n->state[j+1][col];
+
+      //shifts up the last element
+      n->childs[idx]->state[height-1][col]=n->state[0][col];
+
+      //Prints the resulting children node (only when debugging)
+      if (debugging)
+      {
+        printf("Result of shift up on col %hhu\n",col);
+        print_node(n->childs[idx]);
+      }
 
       //Increase the index so a different children is modified
       idx++;
 
-      //TODO shift down
+      //shifts the column down except for the first element
+      for (size_t j = 1; j < height; j++)
+        n->childs[idx]->state[j][col]=n->state[j-1][col];
+
+      //shifts down the first element
+      n->childs[idx]->state[0][col]=n->state[height-1][col];
+
+      //Prints the resulting children node (only when debugging)
+      if (debugging)
+      {
+        printf("Result of shift down on col %hhu\n",col);
+        print_node(n->childs[idx]);
+      }
 
       //Increase the index so a different children is modified
       idx++;
     }
   }
+}
+
+//Checks if the given node is the goal. Returns true in this case.
+bool check_goal(Node* node)
+{
+  for(uint8_t row = 0; row < height; row++)
+    for(uint8_t col = 0; col < width; col++)
+      if (goal[row][col]!=node->state[row][col])
+        return false;
+
+  return true;
+}
+
+//Does a depth-limited DFS
+Node* DLS(Node* node,size_t depth)
+{
+  if ((depth==0)&&(check_goal(node)))
+    return node;
+  else if (depth>0)
+  {
+    if (debugging)
+      printf("This node is not a solution. Trying the children nodes\n");
+
+    if (node->child_count<1)
+      gen_children(node);
+
+    if (debugging)
+      printf("The node has %i children\n",node->child_count);
+
+    for (size_t i = 0; i < node->child_count; i++)
+    {
+      if (debugging)
+        printf("Searching child %zu at depth %zi\n",i,(depth-1));
+
+      Node* solution = DLS(node->childs[i],depth-1);
+      if (solution)
+        return solution;
+    }
+  }
+  if (debugging)
+    printf("No solution found at depth %zu\n",depth);
+  return NULL;
+}
+
+//Does iterative deepening depth-first search to find a solution
+Node* IDDFS(Node* root)
+{
+  //this loop iteratively increases the depth
+  //at which we try to find the solution
+  for (size_t i = 1; i < limit+1; i++)
+  {
+    if (debugging)
+      printf("Trying to find the solution at depth %zu\n",i );
+
+    //tries to find the solution at the given depth
+    Node* solution = DLS(root,i);
+
+    //if it found a solution it immediately returns it
+    //NOTE this solution is in fact optimal
+    if (solution)
+      return solution;
+  }
+
+  //if it did not find the solution in the given limit it returns null
+  return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -259,15 +353,23 @@ int main(int argc, char *argv[])
   if (debugging)
   {
     print_global_parameters();
-    printf("Root:");
+    printf("Root:\n");
     print_node(root);
     printf("-----------------------------------\n\n");
   }
 
-  //Testing the function! This does not go here
-  //gen_children(root);
+  //Tries to find the solution by using iterative deepening depth-first search
+  Node* solution = IDDFS(root);
 
-  //TODO SOLVE
+  //Prints the solution if it found one. If it did not prints IMPOSSIBIRU
+  if (solution)
+  {
+    printf("\n------------------------\n");
+    printf("The solution is:\n");
+    print_node(solution);
+  }
+  else
+    printf("IMPOSSIBRU\n");
 
   //Prevents the watcher from crashing. why? because fuck u that's why.
   if (watch)
