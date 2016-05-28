@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 // Enables prints associated to the debugging
-bool debugging=true;
+bool debugging=false;
 
 //Enables the watcher
 bool watch=false;
@@ -334,13 +334,24 @@ Node* DLS(Node* node,size_t depth)
     if (node->child_count<1)
       gen_children(node);
 
-    if (debugging)
-      printf("The node has %i children\n",node->child_count);
-
     for (size_t i = 0; i < node->child_count; i++)
     {
       if (debugging)
         printf("Searching child %zu at depth %zi\n",i,(depth-1));
+
+      /*
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                          ACHTUNG!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+
+AQUI VA LA WEA QUE DEBERIAS HACER. LA IDEA SERIA QUE ANTES DE HACER LA DLS , VERIFIQUEMOS SI ESE ESTADO PARTICULAR PARA ESA PROFUNDIDAD PARTICULAR YA LO CONSULTAMOS
+
+COMO HACERLO EFICIENTEMENTE? NO SE. SEGUN YO ESTA WEA VA A EMPEORAR LOS PUZZLES EASY Y COMO NO TENEMOS LOS NORMALS NO PODEMOS PROBAR SI ESTA SCHEISSE FUNCIONA BIEN 
+
+      */
 
       Node* solution = DLS(node->childs[i],depth-1);
       if (solution)
@@ -417,9 +428,9 @@ int main(int argc, char *argv[])
   }
 
 
-  //TODO destroy tree
+  tree_destroy(root);
 
-  //TODO destroy global variables
+  destroy_global_parameters();
 
   return 0;
 }
