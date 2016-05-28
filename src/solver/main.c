@@ -22,6 +22,41 @@ bool* active_rows;
 bool* active_cols;
 uint8_t** goal;
 
+//Returns true if the nodes represent the same state
+bool compare_nodes(Node* a, Node* b)
+{
+  for(uint8_t row = 0; row < height; row++)
+    for(uint8_t col = 0; col < width; col++)
+      if (a->state[row][col]!=b->state[row][col])
+        return false;
+
+  return true;
+}
+
+//Free used memory
+void tree_destroy(Node* r)
+{
+  if (r->child_count<1)
+    free(r);
+  else
+  {
+    for (size_t i = 0; i < r->child_count; i++)
+      tree_destroy(r->childs[i]);
+
+    free(r->childs);
+    free(r);
+  }
+}
+
+void destroy_global_parameters()
+{
+  free(active_cols);
+  free(active_rows);
+  for (size_t i = 0; i < height; i++)
+    free(goal[i]);
+  free(goal);
+}
+
 //Initializes and returns the root
 Node* init_root()
 {
@@ -169,7 +204,6 @@ void print_global_parameters()
 }
 
 //Generates the children of a given node, corresponding to all posible moves from the parent node
-//NOTE: INCOMPLETE !! ALSO SHIFT LEFT DOESN'T WORK
 void gen_children(Node* n)
 {
   //This are ALL posible children, including dupes and maybe even the parent state
