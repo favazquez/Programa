@@ -46,7 +46,7 @@ bool compare_nodes(Node* a, Node* b)
 void tree_destroy(Node* r)
 {
   if (r->child_count<1)
-    free(r); // segun yo tambien va un free(r->chields)
+    free(r); // segun yo tambien va un free(r->childs)
   else
   {
     for (size_t i = 0; i < r->child_count; i++)
@@ -139,13 +139,17 @@ void resize_checked_before()
 }
 void add_state_checked(uint8_t** state)
 {
+  if(index_states==0)
+    checked_before_init();
   //first we create space to save our state inside the 3D matrix
   checked_before[index_states]=malloc(sizeof(uint8_t*) * height);
   for(uint8_t row = 0; row < height; row++)
     checked_before[index_states][row] = malloc(sizeof(uint8_t) * width);
   //we save the state in the matrix and add 1 to the count of checked states
+
   checked_before[index_states++]=state;
   nodes_previous_level+=1;
+
 
 }
 
@@ -215,12 +219,12 @@ Node* read_input(char* filename)
      fscanf(file,"%hhu", &active);
      active_rows[active] = true;
    }
-
+   checked_before_init();
    //Create empty root
    Node* r = init_root();
    //creates struct that will keep every state that was checked before
-   checked_before_init();
-   printf("%s\n","post");
+
+
    //Scan
    for(uint8_t row = 0; row < height; row++)
      for(uint8_t col = 0; col < width; col++)
@@ -281,10 +285,12 @@ void print_global_parameters()
 //Generates the children of a given node, corresponding to all posible moves from the parent node
 void gen_children(Node* n)
 {
+  printf("%s\n","1" );
   //This are ALL posible children, including dupes and maybe even the parent state
   n->child_count = 2*(active_col_count+active_row_count);
 
   //Allocate memory
+  //se puede achicar al final del método  usando ralloc con el nuevo child count
   n->childs=malloc(sizeof(Node)*n->child_count);
 
   //Create the appropiate number of empty nodes
@@ -318,10 +324,31 @@ void gen_children(Node* n)
         printf("Result of shift right on row %hhu\n",row);
         print_node(n->childs[idx]);
       }
+      //if this node hasn't been checked before
+      printf("%s\n","2" );
+      if(!node_checked_before(n->childs[idx]->state))
+        {
+          printf("%s\n","4" );
+          idx++;
+          add_state_checked(n->childs[idx]->state);
 
+        }
+        //deshacer hijo y correr toda la lista de nodos por uno, liberar memoria
 
+      else
+      {
+        printf("%s\n","5" );
+        //reassign the missing spot,
+        /*ACHTUNG REVISAR SI ES CHILDCOUNT o CHILDCOUNT-1!!!!*/
+        n->childs[idx]=n->childs[n->child_count-1];
+        n->child_count-=1;
+        free(n->childs[n->child_count-1]->state);
+        free(n->childs[n->child_count-1]);
+        //creo que no es necesario destruir, ya que se sobreescribe
+      }
+      printf("%s\n","3" );
       //Increase the index so a different children is modified
-      idx++;
+
 
       //Now we generate the children node associated to the shift left
       //Es posible juntar ambos en un solo for(más eficiente)
@@ -329,7 +356,7 @@ void gen_children(Node* n)
       //Shifts the row to the left except for the last element
       for (size_t j = 0; j < width-1; j++)
         n->childs[idx]->state[row][j]=n->state[row][j+1];
-
+      printf("%s\n","6" );
       //Does the shift for the last element
       n->childs[idx]->state[row][width-1]= n->state[row][0];
 
@@ -339,9 +366,29 @@ void gen_children(Node* n)
         printf("Result of shift left on row %hhu\n",row);
         print_node(n->childs[idx]);
       }
+      if(!node_checked_before(n->childs[idx]->state))
+        {
+          printf("%s\n","4" );
+          idx++;
+          add_state_checked(n->childs[idx]->state);
+
+        }
+        //deshacer hijo y correr toda la lista de nodos por uno, liberar memoria
+
+      else
+      {
+        printf("%s\n","5" );
+        //reassign the missing spot,
+        n->childs[idx]=n->childs[n->child_count-1];
+        n->child_count-=1;
+        free(n->childs[n->child_count-1]->state);
+        free(n->childs[n->child_count-1]);
+        //creo que no es necesario destruir, ya que se sobreescribe
+      }
 
       //Increase the index so a different children is modified
-      idx++;
+      //idx++;
+      printf("%s\n","7" );
     }
   }
 
