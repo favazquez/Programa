@@ -16,3 +16,13 @@ struct node
   Node** childs;
 
 };
+
+struct checked_before;
+
+typedef struct checked_before Checked_Before;
+
+struct checked_before
+{
+  //The puzzle itself
+  uint8_t** state;
+};
