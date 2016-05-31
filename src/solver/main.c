@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <gmp.h>
+#include <math.h>
 
 // Enables prints associated to the debugging
 bool debugging=false;
@@ -27,7 +29,7 @@ uint8_t** goal;
 int count_level_states=1;
 int count_level_states_previous=0;
 int index_states=0;
-int nodes_previous_level=0;
+//int nodes_previous_level=0;
 uint8_t*** checked_before;
 
 
@@ -46,7 +48,7 @@ bool compare_nodes(Node* a, Node* b)
 void tree_destroy(Node* r)
 {
   if (r->child_count<1)
-    free(r); // segun yo tambien va un free(r->childs)
+    free(r); // segun yo tambien va un free(r->chields)
   else
   {
     for (size_t i = 0; i < r->child_count; i++)
@@ -119,8 +121,9 @@ void checked_before_init()
 {
   //crea un array de tres dimensiones
 
-  checked_before=malloc(sizeof(uint8_t)*count_level_states+sizeof(uint8_t)*index_states);
-
+  checked_before=malloc(sizeof(uint8_t)*1000000000);
+  //nodes_previous_level+=1;
+  index_states+=1;
   /*for (size_t idx = 0; idx < count_level_states+count_level_states_previous; idx++)
   {
     checked_before[idx]=malloc(sizeof(uint8_t*) * height);
@@ -129,27 +132,32 @@ void checked_before_init()
   }*/
 
 }
-void resize_checked_before()
+/*void resize_checked_before()
 {
   //its the minimum space we need to add to our matrix
 
   int child_count= nodes_previous_level*2*(height+width);
-  checked_before= realloc(checked_before, (index_states+child_count)*sizeof(uint8_t));
+  printf("Nodes previous level=%i\n", nodes_previous_level);
+  printf("Child count=%i\n", child_count);
+  printf("Index states=%i\n", index_states);
+  //checked_before= realloc(checked_before, (index_states+child_count)*sizeof(uint8_t));
+  uint8_t*** new= malloc((index_states+child_count)*sizeof(uint8_t));
+  for (size_t i = 0; i < index_states; i++)
+  {
+    new[i]=checked_before[i];
+  }
+  checked_before=new;
 
-}
+}*/
 void add_state_checked(uint8_t** state)
 {
-  if(index_states==0)
-    checked_before_init();
   //first we create space to save our state inside the 3D matrix
   checked_before[index_states]=malloc(sizeof(uint8_t*) * height);
   for(uint8_t row = 0; row < height; row++)
     checked_before[index_states][row] = malloc(sizeof(uint8_t) * width);
   //we save the state in the matrix and add 1 to the count of checked states
-
   checked_before[index_states++]=state;
-  nodes_previous_level+=1;
-
+  //nodes_previous_level+=1;
 
 }
 
@@ -161,21 +169,26 @@ bool node_checked_before(uint8_t** check_state)
 {
 
   //iteration over our matrix states
-  for (size_t i = 0; i<index_states; i++)
+  //con menos uno porque el index_states está siempre uno adelantado
+  if(index_states>0)
   {
-    /*bool gets false in case some space in the state matrix to be checked is different
-    to one space in one of the previous checked states*/
-    bool checked=true;
-    for(uint8_t row = 0; row < height; row++)
-      for(uint8_t col = 0; col < width; col++)
-        if (check_state[row][col]!=checked_before[i][row][col])
-          checked= false;
-    /*if after one iteration the boolean is still true we return it, because it means that
-     we have checked this state before*/
-    if(checked)
-      return checked;
+    for (size_t i = 0; i<index_states-1; i++)
+    {
+      /*bool gets false in case some space in the state matrix to be checked is different
+      to one space in one of the previous checked states*/
+      bool checked=true;
+      for(uint8_t row = 0; row < height; row++)
+        for(uint8_t col = 0; col < width; col++)
+          if (check_state[row][col]!=checked_before[i][row][col])
+            checked= false;
+      /*if after one iteration the boolean is still true we return it, because it means that
+       we have checked this state before*/
+      if(checked)
+        return checked;
 
+    }
   }
+  //
   //if after iterating over the whole matrix we haven't returned anything we return false
   return false;
 }
@@ -219,12 +232,12 @@ Node* read_input(char* filename)
      fscanf(file,"%hhu", &active);
      active_rows[active] = true;
    }
-   checked_before_init();
+
    //Create empty root
    Node* r = init_root();
    //creates struct that will keep every state that was checked before
-
-
+   checked_before_init();
+   printf("%s\n","post");
    //Scan
    for(uint8_t row = 0; row < height; row++)
      for(uint8_t col = 0; col < width; col++)
@@ -285,12 +298,10 @@ void print_global_parameters()
 //Generates the children of a given node, corresponding to all posible moves from the parent node
 void gen_children(Node* n)
 {
-  printf("%s\n","1" );
   //This are ALL posible children, including dupes and maybe even the parent state
   n->child_count = 2*(active_col_count+active_row_count);
 
   //Allocate memory
-  //se puede achicar al final del método  usando ralloc con el nuevo child count
   n->childs=malloc(sizeof(Node)*n->child_count);
 
   //Create the appropiate number of empty nodes
@@ -313,42 +324,37 @@ void gen_children(Node* n)
 
       //This loop shifts the row to the right except for the first element
       for (size_t j = 1; j < width; j++)
+      {
         n->childs[idx]->state[row][j]=n->state[row][j-1];
+
+      }
 
       //Does the shift for the first element
       n->childs[idx]->state[row][0]=n->state[row][width-1];
-
+      //after creating the new state for child[idx] we check if it allready exists
+      //if we haven't checked the state before we add it to the states list
+      if(!node_checked_before(n->childs[idx]->state))
+      {
+        add_state_checked(n->childs[idx]->state);
+        idx+=1;
+      }
+      //if the state is allready inside checked_before we have to reverse some changes
+      else
+      {
+        n->child_count-=1;
+        free(n->childs[n->child_count]);
+        n->childs[idx]=init_node(n);
+      }
       //Prints the resulting children node (only when debugging)
       if (debugging)
       {
         printf("Result of shift right on row %hhu\n",row);
         print_node(n->childs[idx]);
       }
-      //if this node hasn't been checked before
-      printf("%s\n","2" );
-      if(!node_checked_before(n->childs[idx]->state))
-        {
-          printf("%s\n","4" );
-          idx++;
-          add_state_checked(n->childs[idx]->state);
 
-        }
-        //deshacer hijo y correr toda la lista de nodos por uno, liberar memoria
 
-      else
-      {
-        printf("%s\n","5" );
-        //reassign the missing spot,
-        /*ACHTUNG REVISAR SI ES CHILDCOUNT o CHILDCOUNT-1!!!!*/
-        n->childs[idx]=n->childs[n->child_count-1];
-        n->child_count-=1;
-        free(n->childs[n->child_count-1]->state);
-        free(n->childs[n->child_count-1]);
-        //creo que no es necesario destruir, ya que se sobreescribe
-      }
-      printf("%s\n","3" );
       //Increase the index so a different children is modified
-
+      //idx++;
 
       //Now we generate the children node associated to the shift left
       //Es posible juntar ambos en un solo for(más eficiente)
@@ -356,9 +362,25 @@ void gen_children(Node* n)
       //Shifts the row to the left except for the last element
       for (size_t j = 0; j < width-1; j++)
         n->childs[idx]->state[row][j]=n->state[row][j+1];
-      printf("%s\n","6" );
+
       //Does the shift for the last element
       n->childs[idx]->state[row][width-1]= n->state[row][0];
+
+
+
+      if(!node_checked_before(n->childs[idx]->state))
+      {
+        add_state_checked(n->childs[idx]->state);
+        idx+=1;
+      }
+      //if the state is allready inside checked_before we have to reverse some changes
+      else
+      {
+        n->child_count-=1;
+        free(n->childs[n->child_count]);
+        n->childs[idx]=init_node(n);
+      }
+
 
       //Prints the resulting children node (only when debugging)
       if (debugging)
@@ -366,31 +388,19 @@ void gen_children(Node* n)
         printf("Result of shift left on row %hhu\n",row);
         print_node(n->childs[idx]);
       }
-      if(!node_checked_before(n->childs[idx]->state))
-        {
-          printf("%s\n","4" );
-          idx++;
-          add_state_checked(n->childs[idx]->state);
-
-        }
-        //deshacer hijo y correr toda la lista de nodos por uno, liberar memoria
-
-      else
-      {
-        printf("%s\n","5" );
-        //reassign the missing spot,
-        n->childs[idx]=n->childs[n->child_count-1];
-        n->child_count-=1;
-        free(n->childs[n->child_count-1]->state);
-        free(n->childs[n->child_count-1]);
-        //creo que no es necesario destruir, ya que se sobreescribe
-      }
 
       //Increase the index so a different children is modified
       //idx++;
-      printf("%s\n","7" );
     }
   }
+
+
+
+
+
+
+
+
 
   //Loops through the active columns
   for(uint8_t col = 0; col < width; col++)
@@ -404,6 +414,20 @@ void gen_children(Node* n)
       //shifts up the last element
       n->childs[idx]->state[height-1][col]=n->state[0][col];
 
+
+      if(!node_checked_before(n->childs[idx]->state))
+      {
+        add_state_checked(n->childs[idx]->state);
+        idx+=1;
+      }
+      //if the state is allready inside checked_before we have to reverse some changes
+      else
+      {
+        n->child_count-=1;
+        free(n->childs[n->child_count]);
+        n->childs[idx]=init_node(n);
+      }
+
       //Prints the resulting children node (only when debugging)
       if (debugging)
       {
@@ -412,7 +436,7 @@ void gen_children(Node* n)
       }
 
       //Increase the index so a different children is modified
-      idx++;
+      //idx++;
 
       //shifts the column down except for the first element
       for (size_t j = 1; j < height; j++)
@@ -420,6 +444,19 @@ void gen_children(Node* n)
 
       //shifts down the first element
       n->childs[idx]->state[0][col]=n->state[height-1][col];
+
+      if(!node_checked_before(n->childs[idx]->state))
+      {
+        add_state_checked(n->childs[idx]->state);
+        idx+=1;
+      }
+      //if the state is allready inside checked_before we have to reverse some changes
+      else
+      {
+        n->child_count-=1;
+        free(n->childs[n->child_count]);
+        n->childs[idx]=init_node(n);
+      }
 
       //Prints the resulting children node (only when debugging)
       if (debugging)
@@ -429,9 +466,16 @@ void gen_children(Node* n)
       }
 
       //Increase the index so a different children is modified
-      idx++;
+      //idx++;
     }
   }
+
+
+
+
+
+
+
 }
 
 //Checks if the given node is the goal. Returns true in this case.
@@ -464,17 +508,11 @@ Node* DLS(Node* node,size_t depth)
         printf("Searching child %zu at depth %zi\n",i,(depth-1));
 
       /*
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
                           ACHTUNG!!!!!!!!!
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-
 AQUI VA LA WEA QUE DEBERIAS HACER. LA IDEA SERIA QUE ANTES DE HACER LA DLS , VERIFIQUEMOS SI ESE ESTADO PARTICULAR PARA ESA PROFUNDIDAD PARTICULAR YA LO CONSULTAMOS
-
 COMO HACERLO EFICIENTEMENTE? NO SE. SEGUN YO ESTA WEA VA A EMPEORAR LOS PUZZLES EASY Y COMO NO TENEMOS LOS NORMALS NO PODEMOS PROBAR SI ESTA SCHEISSE FUNCIONA BIEN
-
       */
 
       Node* solution = DLS(node->childs[i],depth-1);
@@ -500,12 +538,14 @@ Node* IDDFS(Node* root)
 
     //reallocates our memory space used to save states checked before
 
-    resize_checked_before();
+    //resize_checked_before();
+    //set to 0 if we start a new level
+    //nodes_previous_level=0;
 
     //tries to find the solution at the given depth
     Node* solution = DLS(root,i);
-    //set to 0 if we start a new level
-    nodes_previous_level=0;
+
+
     //if it found a solution it immediately returns it
     //NOTE this solution is in fact optimal
     if (solution)
