@@ -15,6 +15,15 @@ struct node
   //The array of children nodes
   Node** childs;
 
+  //Reference to the parent node
+  Node* parent;
+
+  //Direction of the movement that lead us to this state (R,L,U,D)
+  char direction;
+
+  //Number of the row or column that the previous shift was performed on
+  int n;
+
 };
 
 struct checked_before;

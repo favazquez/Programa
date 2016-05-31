@@ -9,6 +9,9 @@
 // Enables prints associated to the debugging
 bool debugging=false;
 
+//Enables the prints associated to the initial state
+bool print_init=false;
+
 //Enables the watcher
 bool watch=false;
 
@@ -66,6 +69,18 @@ void destroy_global_parameters()
   free(goal);
 }
 
+//Prints the solution
+void print_solution(Node* s)
+{
+  if(s->direction=='X')
+    return;
+  else
+  {
+    print_solution(s->parent);
+    printf("%c %i\n", s->direction,s->n);
+  }
+}
+
 //Initializes and returns the root
 Node* init_root()
 {
@@ -78,6 +93,9 @@ Node* init_root()
   //set child count to 0 ( this the sole condition that specifies the node is a leaf)
   r->child_count=0;
 
+  r->direction='X';
+  r->n=999;
+
   return r;
 }
 
@@ -86,6 +104,7 @@ Node* init_node(Node* parent)
 {
   //Memory allocation
   Node* n = malloc(sizeof(Node));
+  n->parent=parent;
   n->state = malloc(sizeof(uint8_t*) * height);
   for(uint8_t row = 0; row < height; row++)
     n->state[row] = malloc(sizeof(uint8_t) * width);
@@ -98,6 +117,8 @@ Node* init_node(Node* parent)
 
   //set child count to 0 ( this the sole condition that specifies the node is a leaf)
   n->child_count=0;
+  n->direction='M';
+  n->n=6969;
 
   return n;
 }
@@ -113,7 +134,9 @@ void print_node(Node* n)
     }
     printf("\n");
   }
-  printf("\n");
+  printf("\nThe shift that led to this node was:\n");
+  printf("%c %i\n", n->direction,n->n);
+
 }
 void checked_before_init()
 {
@@ -220,7 +243,6 @@ Node* read_input(char* filename)
    Node* r = init_root();
    //creates struct that will keep every state that was checked before
    checked_before_init();
-   printf("%s\n","post");
    //Scan
    for(uint8_t row = 0; row < height; row++)
      for(uint8_t col = 0; col < width; col++)
@@ -240,7 +262,7 @@ Node* read_input(char* filename)
     {
       fscanf(file,"%hhu", &goal[row][col]);
     }
-    checked_before[0]=goal;
+    checked_before[0]=goal; //<- ojo que esto esta copiando por referencia
    //Close the file and return the root
    fclose(file);
 
@@ -312,6 +334,10 @@ void gen_children(Node* n)
       //Does the shift for the first element
       n->childs[idx]->state[row][0]=n->state[row][width-1];
 
+      //Saves the info associated with the shift
+      n->childs[idx]->direction='R';
+      n->childs[idx]->n=row;
+
       //Prints the resulting children node (only when debugging)
       if (debugging)
       {
@@ -332,6 +358,10 @@ void gen_children(Node* n)
 
       //Does the shift for the last element
       n->childs[idx]->state[row][width-1]= n->state[row][0];
+
+      //Saves the info associated with the shift
+      n->childs[idx]->direction='L';
+      n->childs[idx]->n=row;
 
       //Prints the resulting children node (only when debugging)
       if (debugging)
@@ -357,6 +387,10 @@ void gen_children(Node* n)
       //shifts up the last element
       n->childs[idx]->state[height-1][col]=n->state[0][col];
 
+      //Saves the info associated with the shift
+      n->childs[idx]->direction='U';
+      n->childs[idx]->n=col;
+
       //Prints the resulting children node (only when debugging)
       if (debugging)
       {
@@ -373,6 +407,10 @@ void gen_children(Node* n)
 
       //shifts down the first element
       n->childs[idx]->state[0][col]=n->state[height-1][col];
+
+      //Saves the info associated with the shift
+      n->childs[idx]->direction='D';
+      n->childs[idx]->n=col;
 
       //Prints the resulting children node (only when debugging)
       if (debugging)
@@ -477,8 +515,9 @@ int main(int argc, char *argv[])
   //Generate root and global parameters from the file input
   Node* root= read_input(argv[1]);
 
+
   //Prints stuff
-  if (debugging)
+  if (print_init)
   {
     print_global_parameters();
     printf("Root:\n");
@@ -493,8 +532,8 @@ int main(int argc, char *argv[])
   if (solution)
   {
     printf("\n------------------------\n");
-    printf("The solution is:\n");
-    print_node(solution);
+    printf("The optimal solution is:\n");
+    print_solution(solution);
   }
   else
     printf("IMPOSSIBRU\n");
