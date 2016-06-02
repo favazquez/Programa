@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
 // Enables prints associated to the debugging
 bool debugging=false;
@@ -13,7 +15,7 @@ bool debugging=false;
 bool print_init=false;
 
 //Enables the watcher
-bool watch=false;
+bool watch=true;
 
 //Puzzle-specific parameters
 uint8_t width=0;
@@ -69,6 +71,20 @@ void destroy_global_parameters()
   free(goal);
 }
 
+//Updates the watcher
+void update_watcher(Node* s)
+{
+  sleep(1);
+
+  if ((s->direction=='R')||(s->direction=='L'))
+    for (size_t i = 0; i < width; i++)
+      watcher_update_cell(s->n, i, s->state[s->n][i]);
+
+  if ((s->direction=='U')||(s->direction=='D'))
+    for (size_t i = 0; i < height; i++)
+      watcher_update_cell(i, s->n, s->state[i][s->n]);
+}
+
 //Prints the solution
 void print_solution(Node* s)
 {
@@ -78,6 +94,8 @@ void print_solution(Node* s)
   {
     print_solution(s->parent);
     printf("%c %i\n", s->direction,s->n);
+    if (watch)
+      update_watcher(s);
   }
 }
 
@@ -300,6 +318,7 @@ void print_global_parameters()
   printf("-------------------------------------\n");
 }
 
+
 //Generates the children of a given node, corresponding to all posible moves from the parent node
 void gen_children(Node* n)
 {
@@ -314,7 +333,6 @@ void gen_children(Node* n)
     n->childs[i]=init_node(n);
 
   //Children index
-
   int8_t idx=0;
 
   //Loops through the active rows.
@@ -515,7 +533,6 @@ int main(int argc, char *argv[])
   //Generate root and global parameters from the file input
   Node* root= read_input(argv[1]);
 
-
   //Prints stuff
   if (print_init)
   {
@@ -525,8 +542,15 @@ int main(int argc, char *argv[])
     printf("-----------------------------------\n\n");
   }
 
+  //Clockerino
+  clock_t start = clock();
+
   //Tries to find the solution by using iterative deepening depth-first search
   Node* solution = IDDFS(root);
+
+  double time_used = ((double) (clock() - start)) / CLOCKS_PER_SEC;
+
+  fprintf(stderr, "\nOptimal solution found in %lf seconds\n", time_used);
 
   //Prints the solution if it found one. If it did not prints IMPOSSIBIRU
   if (solution)
@@ -536,19 +560,14 @@ int main(int argc, char *argv[])
     print_solution(solution);
   }
   else
-    printf("IMPOSSIBRU\n");
+    printf("IMPOSSIBIRU\n");
 
-  //Prevents the watcher from crashing. why? because fuck u that's why.
+
   if (watch)
   {
-    while (2>1)
-    {
-
-    }
-
+    sleep(3);
     watcher_close();
   }
-
 
   tree_destroy(root);
 
