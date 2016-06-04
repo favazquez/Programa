@@ -40,6 +40,10 @@ Color* colores;
 
 /** El tamaño de una celda del tablero principal */
 double CELL_SIZE;
+/** El tamaño que tiene por defecto */
+#define BASE_CELL_SIZE 64.0;
+
+#define MAX_DIMENSION 800.0
 
 #define RED    (Color){.R = 235.0/255.0, .G = 52.0 /255.0,.B = 65.0 /255.0}
 #define YELLOW (Color){.R = 249.0/255.0, .G = 202.0/255.0,.B = 30.0 /255.0}
@@ -218,7 +222,7 @@ bool check_parameters(int argc, char** argv)
   return true;
 }
 
-void puzzle_read(char* filename)
+void puzzle_parse(char* filename)
 {
   FILE* file = fopen(filename, "r");
 
@@ -288,7 +292,7 @@ void puzzle_read(char* filename)
   fclose(file);
 }
 
-void matrix_destroy()
+void _matrix_destroy()
 {
   free(active_rows);
   free(active_cols);
@@ -355,7 +359,7 @@ int main(int argc, char** argv)
   if(!check_parameters(argc, argv)) return 1;
 
   /* Cargamos el puzzle */
-  puzzle_read(argv[1]);
+  puzzle_parse(argv[1]);
 
   /* Se cierra el canal para errores para que GTK no moleste */
   fclose(stderr);
@@ -371,11 +375,31 @@ int main(int argc, char** argv)
   GtkWidget* canvas = gtk_drawing_area_new();
 
   /* Dimensiones del canvas */
-  CELL_SIZE = 64.0;
+  CELL_SIZE = BASE_CELL_SIZE;
   double window_width = CELL_SIZE * (width + 1);
   double window_height = CELL_SIZE * (height + 1);
   window_width *= (1 + GUIDE);
   window_width += CELL_SIZE*(1-GUIDE);
+
+  if(window_width > MAX_DIMENSION || window_height > MAX_DIMENSION)
+  {
+    if(window_width > window_height)
+    {
+      /* ww = CS (w + 2 + w*g) */
+      window_width = MAX_DIMENSION;
+      CELL_SIZE = window_width / ((double)(width + 2 + width*GUIDE));
+      window_height = CELL_SIZE * (height + 1);
+    }
+    else
+    {
+      /* wh = CS*(h+1) */
+      window_height = MAX_DIMENSION;
+      CELL_SIZE = window_height / ((double)(height + 1));
+      window_width = CELL_SIZE * (width + 1);
+      window_width *= (1 + GUIDE);
+      window_width += CELL_SIZE*(1-GUIDE);
+    }
+  }
 
   gtk_widget_set_size_request(canvas, window_width, window_height);
 
@@ -412,39 +436,33 @@ int main(int argc, char** argv)
   /* Comenzamos la ejecucion de GTK */
   gtk_main();
 
-  // /* Imprimimos las imagenes del tablero */
-  // char* file = strdup(argv[1]);
-  // file = strstr(file, "/") + 1;
-  // char filename[256];
-  //
-  // cairo_surface_t* surface;
-  // cairo_t *cr;
-  //
-  // sprintf(filename, "%s_all.pdf", file);
-  // surface = cairo_pdf_surface_create (filename, window_width, window_height);
-  // cr = cairo_create(surface);
-  //
-  // /* Dibuja el estado actual */
-  // draw(NULL, cr, NULL);
-  //
-  // cairo_surface_destroy(surface);
-  // cairo_destroy(cr);
-  //
-  // guide = false;
-  //
-  // window_width = CELL_SIZE * (width + 1);
-  // sprintf(filename, "%s.pdf", file);
-  // surface = cairo_pdf_surface_create (filename, window_width, window_height);
-  // cr = cairo_create(surface);
-  //
-  // /* Dibuja el estado actual */
-  // draw(NULL, cr, NULL);
-  //
-  // cairo_surface_destroy(surface);
-  // cairo_destroy(cr);
+  /* Imprimimos las imagenes del tablero */
+  cairo_surface_t* surface;
+  cairo_t *cr;
+
+  surface = cairo_pdf_surface_create ("watcher_window.pdf", window_width, window_height);
+  cr = cairo_create(surface);
+
+  /* Dibuja el estado actual */
+  draw(NULL, cr, NULL);
+
+  cairo_surface_destroy(surface);
+  cairo_destroy(cr);
+
+  guide = false;
+
+  window_width = CELL_SIZE * (width + 1);
+  surface = cairo_pdf_surface_create ("watcher_board.pdf", window_width, window_height);
+  cr = cairo_create(surface);
+
+  /* Dibuja el estado actual */
+  draw(NULL, cr, NULL);
+
+  cairo_surface_destroy(surface);
+  cairo_destroy(cr);
 
   free(update_thread);
-  matrix_destroy();
+  _matrix_destroy();
   free(colores);
 
   return 0;

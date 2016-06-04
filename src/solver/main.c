@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <math.h>
 
 // Enables prints associated to the debugging
 bool debugging=false;
@@ -50,6 +50,7 @@ bool compare_nodes(Node* a, Node* b)
 //Free used memory
 void tree_destroy(Node* r)
 {
+
   if (r->child_count<1)
     free(r); // segun yo tambien va un free(r->chields)
   else
@@ -152,7 +153,7 @@ void print_node(Node* n)
     }
     printf("\n");
   }
-  printf("\nThe shift that led to this node was:\n");
+  printf("The shift that led to this node was:\n");
   printf("%c %i\n", n->direction,n->n);
 
 }
@@ -215,6 +216,36 @@ bool node_checked_before(uint8_t** check_state)
   }
   //if after iterating over the whole matrix we haven't returned anything we return false
   return false;
+}
+
+//Prints the global parameters. Duh.
+void print_global_parameters()
+{
+  printf("\n-------------------------------------\n");
+  printf("Global variables:\n");
+  printf("Height: %hhu \n", height );
+  printf("Width: %hhu \n", width );
+  printf("Limit: %hhu \n", limit );
+  printf("There are %hhu active columns, which are : ",active_col_count);
+  for(uint8_t col = 0; col < width; col++)
+    if (active_cols[col])
+      printf("%hhu ",col );
+  printf("\n");
+  printf("There are %hhu active rows, which are    : ",active_row_count);
+  for(uint8_t row = 0; row < height; row++)
+    if (active_rows[row])
+      printf("%hhu ",row );
+  printf("\n");
+  printf("Goal State:\n");
+  for(uint8_t row = 0; row < height; row++)
+  {
+    for(uint8_t col = 0; col < width; col++)
+    {
+      printf("%hhu ", goal[row][col]);
+    }
+    printf("\n");
+  }
+  printf("-------------------------------------\n");
 }
 
 //Reads the input file.
@@ -281,6 +312,7 @@ Node* read_input(char* filename)
       fscanf(file,"%hhu", &goal[row][col]);
     }
     checked_before[0]=goal; //<- ojo que esto esta copiando por referencia
+
    //Close the file and return the root
    fclose(file);
 
@@ -288,40 +320,89 @@ Node* read_input(char* filename)
 
 }
 
-//Prints the global parameters. Duh.
-void print_global_parameters()
+
+Node* shift_right(Node* n,size_t row)
 {
-  printf("\n-------------------------------------\n");
-  printf("Global variables:\n");
-  printf("Height: %hhu \n", height );
-  printf("Width: %hhu \n", width );
-  printf("Limit: %hhu \n", limit );
-  printf("There are %hhu active columns, which are : ",active_col_count);
-  for(uint8_t col = 0; col < width; col++)
-    if (active_cols[col])
-      printf("%hhu ",col );
-  printf("\n");
-  printf("There are %hhu active rows, which are    : ",active_row_count);
-  for(uint8_t row = 0; row < height; row++)
-    if (active_rows[row])
-      printf("%hhu ",row );
-  printf("\n");
-  printf("Goal State:\n");
-  for(uint8_t row = 0; row < height; row++)
-  {
-    for(uint8_t col = 0; col < width; col++)
-    {
-      printf("%hhu ", goal[row][col]);
-    }
-    printf("\n");
-  }
-  printf("-------------------------------------\n");
+  Node* p = init_node(n);
+  //This loop shifts the row to the right except for the first element
+  for (size_t j = 1; j < width; j++)
+    n->state[row][j]=p->state[row][j-1];
+
+  //Does the shift for the first element
+  n->state[row][0]=p->state[row][width-1];
+
+  //Saves the info associated with the shift
+  n->direction='R';
+  n->n=row;
+
+  return n;
 }
 
-
-//Generates the children of a given node, corresponding to all posible moves from the parent node
-void gen_children(Node* n)
+Node* shift_left(Node* n,size_t row)
 {
+  Node* p = init_node(n);
+  //Shifts the row to the left except for the last element
+  for (size_t j = 0; j < width-1; j++)
+    n->state[row][j]=p->state[row][j+1];
+
+  //Does the shift for the last element
+  n->state[row][width-1]= p->state[row][0];
+
+  //Saves the info associated with the shift
+  n->direction='L';
+  n->n=row;
+
+  return n;
+
+}
+
+Node* shift_up(Node* n,size_t col)
+{
+  Node* p = init_node(n);
+  //shifts the column up except for the last element
+  for (size_t j = 0; j < height-1; j++)
+    n->state[j][col]=p->state[j+1][col];
+
+  //shifts up the last element
+  n->state[height-1][col]=p->state[0][col];
+
+  //Saves the info associated with the shift
+  n->direction='U';
+  n->n=col;
+
+  return n;
+
+}
+
+Node* shift_down(Node* n,size_t col)
+{
+  Node* p = init_node(n);
+  //shifts the column down except for the first element
+  for (size_t j = 1; j < height; j++)
+    n->state[j][col]=p->state[j-1][col];
+
+  //shifts down the first element
+  n->state[0][col]=p->state[height-1][col];
+
+  //Saves the info associated with the shift
+  n->direction='D';
+  n->n=col;
+
+  return n;
+
+}
+void print_children(Node* n)
+{
+  printf("--------------------------------------\nThe node :\n");
+  print_node(n);
+  printf("Has the following children:\n");
+  for (size_t i = 0; i < n->child_count; i++)
+    print_node(n->childs[i]);
+}
+//Generates the children of a given node, corresponding to all posible moves from the parent node
+void gen_children(Node* n, size_t depth)
+{
+
   //This are ALL posible children, including dupes and maybe even the parent state
   n->child_count = 2*(active_col_count+active_row_count);
 
@@ -335,61 +416,35 @@ void gen_children(Node* n)
   //Children index
   int8_t idx=0;
 
+
   //Loops through the active rows.
   for(uint8_t row = 0; row < height; row++)
   {
     if (active_rows[row])
     {
-      //When the row is active we need to generate two children for it:
-      //One corresponding to shift left and another for shift right
+      n->childs[idx]= shift_right(n->childs[idx],row);
 
-      //First we generate the children node associated to  shift right
-
-      //This loop shifts the row to the right except for the first element
-      for (size_t j = 1; j < width; j++)
-        n->childs[idx]->state[row][j]=n->state[row][j-1];
-
-      //Does the shift for the first element
-      n->childs[idx]->state[row][0]=n->state[row][width-1];
-
-      //Saves the info associated with the shift
-      n->childs[idx]->direction='R';
-      n->childs[idx]->n=row;
-
-      //Prints the resulting children node (only when debugging)
-      if (debugging)
+      if (!compare_nodes(n, n->childs[idx]))
       {
-        printf("Result of shift right on row %hhu\n",row);
-        print_node(n->childs[idx]);
+        idx++;
+      }
+      else
+      {
+        n->childs[idx]= shift_left(n->childs[idx],row);
       }
 
 
-      //Increase the index so a different children is modified
-      idx++;
+      n->childs[idx]= shift_left(n->childs[idx],row);
 
-      //Now we generate the children node associated to the shift left
-      //Es posible juntar ambos en un solo for(más eficiente)
-
-      //Shifts the row to the left except for the last element
-      for (size_t j = 0; j < width-1; j++)
-        n->childs[idx]->state[row][j]=n->state[row][j+1];
-
-      //Does the shift for the last element
-      n->childs[idx]->state[row][width-1]= n->state[row][0];
-
-      //Saves the info associated with the shift
-      n->childs[idx]->direction='L';
-      n->childs[idx]->n=row;
-
-      //Prints the resulting children node (only when debugging)
-      if (debugging)
+      if (!compare_nodes(n, n->childs[idx]))
       {
-        printf("Result of shift left on row %hhu\n",row);
-        print_node(n->childs[idx]);
+        idx++;
+      }
+      else
+      {
+        n->childs[idx]= shift_right(n->childs[idx],row);
       }
 
-      //Increase the index so a different children is modified
-      idx++;
     }
   }
 
@@ -398,49 +453,36 @@ void gen_children(Node* n)
   {
     if (active_cols[col])
     {
-      //shifts the column up except for the last element
-      for (size_t j = 0; j < height-1; j++)
-        n->childs[idx]->state[j][col]=n->state[j+1][col];
+      n->childs[idx]= shift_up(n->childs[idx],col);
 
-      //shifts up the last element
-      n->childs[idx]->state[height-1][col]=n->state[0][col];
-
-      //Saves the info associated with the shift
-      n->childs[idx]->direction='U';
-      n->childs[idx]->n=col;
-
-      //Prints the resulting children node (only when debugging)
-      if (debugging)
+      if (!compare_nodes(n, n->childs[idx]))
       {
-        printf("Result of shift up on col %hhu\n",col);
-        print_node(n->childs[idx]);
+        idx++;
+      }
+      else
+      {
+        n->childs[idx]=shift_down(n->childs[idx],col);
       }
 
-      //Increase the index so a different children is modified
-      idx++;
+      n->childs[idx]= shift_down(n->childs[idx],col);
 
-      //shifts the column down except for the first element
-      for (size_t j = 1; j < height; j++)
-        n->childs[idx]->state[j][col]=n->state[j-1][col];
-
-      //shifts down the first element
-      n->childs[idx]->state[0][col]=n->state[height-1][col];
-
-      //Saves the info associated with the shift
-      n->childs[idx]->direction='D';
-      n->childs[idx]->n=col;
-
-      //Prints the resulting children node (only when debugging)
-      if (debugging)
+      if (!compare_nodes(n, n->childs[idx]))
       {
-        printf("Result of shift down on col %hhu\n",col);
-        print_node(n->childs[idx]);
+        idx++;
+      }
+      else
+      {
+        n->childs[idx]=shift_up(n->childs[idx],col);
       }
 
-      //Increase the index so a different children is modified
-      idx++;
     }
   }
+
+  //Update to actual children count
+  n->child_count=idx;
+
+  if (debugging)
+    print_children(n);
 }
 
 //Checks if the given node is the goal. Returns true in this case.
@@ -462,10 +504,11 @@ Node* DLS(Node* node,size_t depth)
   else if (depth>0)
   {
     if (debugging)
-      printf("This node is not a solution. Trying the children nodes\n");
+      printf("Trying to generate the children nodes\n");
 
     if (node->child_count<1)
-      gen_children(node);
+        gen_children(node,depth);
+
 
     for (size_t i = 0; i < node->child_count; i++)
     {
@@ -527,6 +570,7 @@ Node* IDDFS(Node* root)
 
 int main(int argc, char *argv[])
 {
+
   if (watch)
     watcher_open(argv[1]);
 
@@ -542,7 +586,7 @@ int main(int argc, char *argv[])
     printf("-----------------------------------\n\n");
   }
 
-  //Clockerino
+  //Clock
   clock_t start = clock();
 
   //Tries to find the solution by using iterative deepening depth-first search
@@ -550,18 +594,17 @@ int main(int argc, char *argv[])
 
   double time_used = ((double) (clock() - start)) / CLOCKS_PER_SEC;
 
-  fprintf(stderr, "\nOptimal solution found in %lf seconds\n", time_used);
+  fprintf(stderr, "Optimal solution found in %lf seconds\n", time_used);
 
   //Prints the solution if it found one. If it did not prints IMPOSSIBIRU
   if (solution)
   {
-    printf("\n------------------------\n");
+    printf("------------------------\n");
     printf("The optimal solution is:\n");
     print_solution(solution);
   }
   else
     printf("IMPOSSIBIRU\n");
-
 
   if (watch)
   {
@@ -572,6 +615,7 @@ int main(int argc, char *argv[])
   tree_destroy(root);
 
   destroy_global_parameters();
+
 
   return 0;
 }
