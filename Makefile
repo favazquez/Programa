@@ -17,7 +17,7 @@ CC=gcc -std=gnu11
 # -Wall    = (Warn All) Da aviso de todos los posibles errores de compilación
 # -O3      = Optimizaciones nivel 3
 # -I.      = (Include .) Que busque los headers en el directorio actual
-CFLAGS=-Wunused -Wall -O0 -I. -D__USE_MINGW_ANSI_STDIO=1
+CFLAGS=-Wunused -Wall -O0 -I. -D__USE_MINGW_ANSI_STDIO=1 -lgmp
 
 # Parametros para poder compilar aplicaciones con interfaz gráfica GTK+ y PNG
 GTKFLAGS=`pkg-config --cflags --libs gtk+-3.0` `pkg-config --cflags --libs libpng`

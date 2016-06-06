@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <math.h>
 
+
 // Enables prints associated to the debugging
 bool debugging=false;
 
@@ -15,7 +16,7 @@ bool debugging=false;
 bool print_init=false;
 
 //Enables the watcher
-bool watch=true;
+bool watch=false;
 
 //Puzzle-specific parameters
 uint8_t width=0;
@@ -26,6 +27,7 @@ uint8_t active_row_count=0;
 bool* active_rows;
 bool* active_cols;
 uint8_t** goal;
+Node** visited;
 
 //count of different states per level
 /*count_level_states= count_nodes_nivel_anterior*2*(active_col_count+active_row_count) + count_level_states_previous*/
@@ -62,7 +64,34 @@ void tree_destroy(Node* r)
     free(r);
   }
 }
+unsigned long long mpz2ull(mpz_t z)
+{
+    unsigned long long result = 0;
+    mpz_export(&result, 0, -1, sizeof result, 0, 0, z);
+    return result;
+}
+unsigned long long get_hash(Node*n)
+{
+  mpz_t hash;
+  mpz_t resto;
+  mpz_init(hash);
+  mpz_init(resto);
+  int idx=0;
 
+  for(uint8_t row = 0; row < height; row++)
+    for(uint8_t col = 0; col < width; col++)
+      if ((active_rows[row])||(active_cols[col]))
+      {
+        mpz_add_ui(hash,hash,n->state[row][col]*pow(8,idx));
+        idx++;
+      }
+
+  unsigned long long l = ULLONG_MAX;
+  mpz_mod_ui(resto,hash,l);
+  l=mpz2ull(resto);
+  return l;
+
+}
 void destroy_global_parameters()
 {//nose si va esto aca... segun yo solo es necesario si lo pides con malloc(no es el caso), ya que el resto vive solo en el scope
   free(active_cols);
@@ -588,6 +617,12 @@ int main(int argc, char *argv[])
 
   //Clock
   clock_t start = clock();
+
+  //Init the list of visited states
+  visited=malloc(sizeof(Node)*INT32_MAX);
+  visited[0]=root;
+  if (visited[0])
+    print_node(visited[0]);
 
   //Tries to find the solution by using iterative deepening depth-first search
   Node* solution = IDDFS(root);
