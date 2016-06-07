@@ -7,7 +7,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <math.h>
-
+#include <string.h>
 
 // Enables prints associated to the debugging
 bool debugging=false;
@@ -70,7 +70,54 @@ unsigned long long mpz2ull(mpz_t z)
     mpz_export(&result, 0, -1, sizeof result, 0, 0, z);
     return result;
 }
-unsigned long long get_hash(Node*n)
+void get_hash2(Node* n)
+{
+  int* hash;
+  hash=malloc(sizeof(int)*8192);
+  for (size_t i = 0; i < 8192; i++)
+   hash[i]=0;
+
+  int aux=9;
+  int idx=0;
+  int count=0;
+  bool first=true;
+
+  for(uint8_t row = 0; row < height; row++)
+    for(uint8_t col = 0; col < width; col++)
+      if ((active_rows[row])||(active_cols[col]))
+      {
+          if (first)
+          {
+            aux=n->state[row][col];
+            count=1;
+            first=false;
+          }
+          else
+          {
+            if (aux==n->state[row][col]&&count<9)
+            {
+              count++;
+            }
+            else
+            {
+                hash[idx]=count;
+                idx++;
+                hash[idx]=aux;
+                idx++;
+
+                aux=n->state[row][col];
+                count=1;
+            }
+          }
+      }
+
+      for (size_t i = 0; i < idx; i++)
+        printf("%i",hash[i] );
+
+
+      printf("\n");
+}
+unsigned long long get_hash(Node* n)
 {
   mpz_t hash;
   mpz_t resto;
@@ -86,7 +133,7 @@ unsigned long long get_hash(Node*n)
         idx++;
       }
 
-  unsigned long long l = ULLONG_MAX;
+  int l = INT32_MAX;
   mpz_mod_ui(resto,hash,l);
   l=mpz2ull(resto);
   return l;
@@ -619,10 +666,14 @@ int main(int argc, char *argv[])
   clock_t start = clock();
 
   //Init the list of visited states
+  /*
   visited=malloc(sizeof(Node)*INT32_MAX);
   visited[0]=root;
   if (visited[0])
     print_node(visited[0]);
+    */
+  print_node(root);
+  get_hash2(root);
 
   //Tries to find the solution by using iterative deepening depth-first search
   Node* solution = IDDFS(root);
