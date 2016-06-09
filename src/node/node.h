@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include <gmp.h>
+//#include <gmp.h>
 
 struct node;
 
@@ -26,16 +26,6 @@ struct node
   //Number of the row or column that the previous shift was performed on
   int n;
 
-  mpz_t key;
+  //mpz_t key;
 
-};
-
-struct checked_before;
-
-typedef struct checked_before Checked_Before;
-
-struct checked_before
-{
-  //The puzzle itself
-  uint8_t** state;
 };

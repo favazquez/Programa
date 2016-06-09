@@ -31,11 +31,11 @@ Node** visited;
 
 //count of different states per level
 /*count_level_states= count_nodes_nivel_anterior*2*(active_col_count+active_row_count) + count_level_states_previous*/
-int count_level_states=1;
-int count_level_states_previous=0;
-int index_states=0;
-int nodes_previous_level=0;
-uint8_t*** checked_before;
+//int count_level_states=1;
+//int count_level_states_previous=0;
+//int index_states=0;
+//int nodes_previous_level=0;
+//uint8_t*** checked_before;
 
 
 //Returns true if the nodes represent the same state
@@ -54,17 +54,29 @@ void tree_destroy(Node* r)
 {
 
   if (r->child_count<1)
-    free(r); // segun yo tambien va un free(r->chields)
+  {
+    for (size_t row = 0; row < height; row++)
+     {
+        free(r->state[row]);
+    }
+    free(r->state);
+    free(r->childs);
+    free(r);
+  }
+   // segun yo tambien va un free(r->chields)
   else
   {
     for (size_t i = 0; i < r->child_count; i++)
-      tree_destroy(r->childs[i]);
-
+      {
+        tree_destroy(r->childs[i]);
+        //free(r->childs[i]->childs);
+      }
     free(r->childs);
     free(r);
   }
 }
-unsigned long long mpz2ull(mpz_t z)
+
+/*unsigned long long mpz2ull(mpz_t z)
 {
     unsigned long long result = 0;
     mpz_export(&result, 0, -1, sizeof result, 0, 0, z);
@@ -138,7 +150,7 @@ unsigned long long get_hash(Node* n)
   l=mpz2ull(resto);
   return l;
 
-}
+}*/
 void destroy_global_parameters()
 {//nose si va esto aca... segun yo solo es necesario si lo pides con malloc(no es el caso), ya que el resto vive solo en el scope
   free(active_cols);
@@ -217,6 +229,11 @@ Node* init_node(Node* parent)
 
   return n;
 }
+int* crear_tabla_auxiliar()
+{
+  int* aux = malloc(sizeof(int)*UINT16_MAX);
+  return aux;
+}
 
 //Prints the info asssociated to the node
 void print_node(Node* n)
@@ -233,18 +250,19 @@ void print_node(Node* n)
   printf("%c %i\n", n->direction,n->n);
 
 }
+/*
 void checked_before_init()
 {
   //crea un array de tres dimensiones
 
   checked_before=malloc(sizeof(uint8_t)*count_level_states+sizeof(uint8_t)*index_states);
 
-  /*for (size_t idx = 0; idx < count_level_states+count_level_states_previous; idx++)
+  for (size_t idx = 0; idx < count_level_states+count_level_states_previous; idx++)
   {
     checked_before[idx]=malloc(sizeof(uint8_t*) * height);
     for(uint8_t row = 0; row < height; row++)
       checked_before[idx][row] = malloc(sizeof(uint8_t) * width);
-  }*/
+  }
 
 }
 void resize_checked_before()
@@ -268,24 +286,25 @@ void add_state_checked(uint8_t** state)
 }
 
 
-/*Checks if we return to a state we have checked before:
-case we haven't: adds it to our list and returns false
-case we have: returns true, so we can  destroy this node/child*/
+//Checks if we return to a state we have checked before:
+//case we haven't: adds it to our list and returns false
+//case we have: returns true, so we can  destroy this node/child
+
 bool node_checked_before(uint8_t** check_state)
 {
 
   //iteration over our matrix states
   for (size_t i = 0; i<index_states; i++)
   {
-    /*bool gets false in case some space in the state matrix to be checked is different
-    to one space in one of the previous checked states*/
+    //bool gets false in case some space in the state matrix to be checked is different
+    //to one space in one of the previous checked states
     bool checked=true;
     for(uint8_t row = 0; row < height; row++)
       for(uint8_t col = 0; col < width; col++)
         if (check_state[row][col]!=checked_before[i][row][col])
           checked= false;
-    /*if after one iteration the boolean is still true we return it, because it means that
-     we have checked this state before*/
+    //if after one iteration the boolean is still true we return it, because it means that
+     //we have checked this state before
     if(checked)
       return checked;
 
@@ -293,7 +312,7 @@ bool node_checked_before(uint8_t** check_state)
   //if after iterating over the whole matrix we haven't returned anything we return false
   return false;
 }
-
+*/
 //Prints the global parameters. Duh.
 void print_global_parameters()
 {
@@ -367,7 +386,7 @@ Node* read_input(char* filename)
    //Create empty root
    Node* r = init_root();
    //creates struct that will keep every state that was checked before
-   checked_before_init();
+   //checked_before_init();
    //Scan
    for(uint8_t row = 0; row < height; row++)
      for(uint8_t col = 0; col < width; col++)
@@ -387,7 +406,7 @@ Node* read_input(char* filename)
     {
       fscanf(file,"%hhu", &goal[row][col]);
     }
-    checked_before[0]=goal; //<- ojo que esto esta copiando por referencia
+    //checked_before[0]=goal; //<- ojo que esto esta copiando por referencia
 
    //Close the file and return the root
    fclose(file);
@@ -555,6 +574,18 @@ void gen_children(Node* n, size_t depth)
   }
 
   //Update to actual children count
+  if(idx<n->child_count)
+  {
+    for (size_t i = idx+1; i < n->child_count; i++) {
+      for (size_t row = 0; row < height; row++)
+       {
+          free(n->childs[i]->state[row]);
+      }
+      free(n->childs[i]->state);
+      free(n->childs[i]);
+    }
+  }
+
   n->child_count=idx;
 
   if (debugging)
@@ -628,12 +659,12 @@ Node* IDDFS(Node* root)
 
     //reallocates our memory space used to save states checked before
 
-    resize_checked_before();
+    //resize_checked_before();
 
     //tries to find the solution at the given depth
     Node* solution = DLS(root,i);
     //set to 0 if we start a new level
-    nodes_previous_level=0;
+    //nodes_previous_level=0;
     //if it found a solution it immediately returns it
     //NOTE this solution is in fact optimal
     if (solution)
@@ -673,7 +704,7 @@ int main(int argc, char *argv[])
     print_node(visited[0]);
     */
   print_node(root);
-  get_hash2(root);
+  //get_hash2(root);
 
   //Tries to find the solution by using iterative deepening depth-first search
   Node* solution = IDDFS(root);
@@ -699,7 +730,11 @@ int main(int argc, char *argv[])
   }
 
   tree_destroy(root);
-
+  /*
+  for (size_t i = 0; i < 100000; i++) {
+    int* aux= crear_tabla_auxiliar();
+    free(aux);
+  }*/
   destroy_global_parameters();
 
 
