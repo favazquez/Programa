@@ -26,8 +26,11 @@ uint8_t active_col_count=0;
 uint8_t active_row_count=0;
 bool* active_rows;
 bool* active_cols;
+
+
 uint8_t** goal;
-Node** visited;
+
+//Node** visited;
 
 //count of different states per level
 /*count_level_states= count_nodes_nivel_anterior*2*(active_col_count+active_row_count) + count_level_states_previous*/
@@ -60,10 +63,9 @@ void tree_destroy(Node* r)
         free(r->state[row]);
     }
     free(r->state);
-    free(r->childs);
+    //free(r->childs);
     free(r);
   }
-   // segun yo tambien va un free(r->chields)
   else
   {
     for (size_t i = 0; i < r->child_count; i++)
@@ -71,6 +73,11 @@ void tree_destroy(Node* r)
         tree_destroy(r->childs[i]);
         //free(r->childs[i]->childs);
       }
+      for (size_t row = 0; row < height; row++)
+       {
+          free(r->state[row]);
+      }
+    free(r->state);
     free(r->childs);
     free(r);
   }
@@ -573,7 +580,7 @@ void gen_children(Node* n, size_t depth)
     }
   }
 
-  //Update to actual children count
+//Free the memory of unused childs
   if(idx<n->child_count)
   {
     for (size_t i = idx+1; i < n->child_count; i++) {
@@ -586,6 +593,7 @@ void gen_children(Node* n, size_t depth)
     }
   }
 
+  //Update to actual children count
   n->child_count=idx;
 
   if (debugging)
@@ -630,14 +638,11 @@ Node* DLS(Node* node,size_t depth)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
-AQUI VA LA WEA QUE DEBERIAS HACER. LA IDEA SERIA QUE ANTES DE HACER LA DLS , VERIFIQUEMOS SI ESE ESTADO PARTICULAR PARA ESA PROFUNDIDAD PARTICULAR YA LO CONSULTAMOS
-
-COMO HACERLO EFICIENTEMENTE? NO SE. SEGUN YO ESTA WEA VA A EMPEORAR LOS PUZZLES EASY Y COMO NO TENEMOS LOS NORMALS NO PODEMOS PROBAR SI ESTA SCHEISSE FUNCIONA BIEN
 
       */
 
       Node* solution = DLS(node->childs[i],depth-1);
-      //como funciona esto??? Es un nodo, no boolean. Retorna false si es null?
+
       if (solution)
         return solution;
     }
@@ -703,7 +708,7 @@ int main(int argc, char *argv[])
   if (visited[0])
     print_node(visited[0]);
     */
-  print_node(root);
+  //print_node(root);
   //get_hash2(root);
 
   //Tries to find the solution by using iterative deepening depth-first search
